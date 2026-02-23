@@ -1,0 +1,14 @@
+# Ignore Datasets & AI Models
+dataset_final/
+backend/models/*.pth
+
+# Ignore Node Modules & Python Cache
+frontend/node_modules/
+backend/__pycache__/
+
+# NEVER upload secret environment variables!
+.env
+backend/.env
+frontend/.env
+backend/uploads/*
+!backend/uploads/.gitkeep
