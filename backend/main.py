@@ -11,7 +11,9 @@ import uuid, os, time
 from datetime import datetime
 
 app = FastAPI()
-
+@app.get("/")
+async def root():
+    return {"message": "Telepathology API is running successfully!", "status": "Healthy"}
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -146,7 +148,9 @@ async def upload(
 async def get_data(username: str, role: str):
     if role == "rural": query = {"sender": username}
     else: query = {"receiver": username}  
-    all_cases = await cases.find(query).sort("timestamp", -1).limit(20).to_list(20)
+    
+    # FIX: Removed the .limit(20) and increased .to_list() to 1000 so all older cases load
+    all_cases = await cases.find(query).sort("timestamp", -1).to_list(1000)
     data = []
     for c in all_cases:
         c["_id"] = str(c["_id"])
@@ -170,7 +174,8 @@ async def get_logs(username: str, role: str):
         ] 
     }
     
-    l = await logs.find(query).sort("timestamp", -1).limit(50).to_list(50)
+    # FIX: Increased limit from 50 to 1000 to ensure old logs aren't hidden
+    l = await logs.find(query).sort("timestamp", -1).to_list(1000)
     for x in l: x["_id"] = str(x["_id"])
     return l
 

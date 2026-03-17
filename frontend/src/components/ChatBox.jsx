@@ -3,13 +3,17 @@ import { useState, useEffect, useRef } from 'react';
 export default function ChatBox({ caseId, user, onClose }) {
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState("");
-  const [status, setStatus] = useState("Connecting..."); // New Status State
+  const [status, setStatus] = useState("Connecting..."); 
   const ws = useRef(null);
   const endRef = useRef(null);
 
   useEffect(() => {
-    // 1. Force 127.0.0.1 to avoid IPv6 issues
-    const wsUrl = `ws://localhost:8000/ws/chat/${caseId}`;
+    // 1. Grab the live backend URL from your .env file (fallback to localhost for local testing)
+    const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    
+    // 2. Convert http/https to ws/wss automatically for the WebSocket protocol
+    const wsUrl = `${backendUrl.replace(/^http/, 'ws')}/ws/chat/${caseId}`;
+    
     console.log("Attempting Connection to:", wsUrl);
     
     ws.current = new WebSocket(wsUrl);
@@ -21,14 +25,17 @@ export default function ChatBox({ caseId, user, onClose }) {
 
     ws.current.onmessage = (event) => {
       console.log("📩 Message Received:", event.data);
-      const msg = JSON.parse(event.data);
-      setMsgs((prev) => {
-        // Prevent duplicates if React renders twice
-        if (prev.some(m => m.text === msg.text && m.user === msg.user && m.timestamp === msg.timestamp)) {
-            return prev;
-        }
-        return [...prev, msg];
-      });
+      try {
+        const msg = JSON.parse(event.data);
+        setMsgs((prev) => {
+          if (prev.some(m => m.text === msg.text && m.timestamp === msg.timestamp)) {
+              return prev;
+          }
+          return [...prev, msg];
+        });
+      } catch (e) {
+        console.error("Received non-JSON message:", event.data);
+      }
     };
 
     ws.current.onclose = () => {
@@ -105,7 +112,7 @@ export default function ChatBox({ caseId, user, onClose }) {
           <input 
             value={input} 
             onChange={e => setInput(e.target.value)}
-            onKeyPress={e => e.key === 'Enter' && send()}
+            onKeyDown={e => e.key === 'Enter' && send()}
             placeholder="Type message..." 
             autoFocus
             disabled={status !== 'Connected'}

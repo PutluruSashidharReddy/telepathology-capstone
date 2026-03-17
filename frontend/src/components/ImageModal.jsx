@@ -1,5 +1,5 @@
 export default function ImageModal({ caseData, role, onClose }) {
-  const { case_id, original_size, compressed_size, diagnosis } = caseData; 
+  const { case_id, original_size, compressed_size, diagnosis } = caseData; // added diagnosis
 
   const formatSize = (bytes) => {
     if (!bytes) return "Unknown";
@@ -7,14 +7,13 @@ export default function ImageModal({ caseData, role, onClose }) {
     return (bytes / 1024).toFixed(0) + " KB";
   };
 
-  // --- UPDATED URLS TO POINT TO CLOUD BACKEND ---
   const leftImage = role === 'rural' 
-    ? `${import.meta.env.VITE_API_URL}/uploads/${case_id}_original.jpg`
-    : `${import.meta.env.VITE_API_URL}/uploads/${case_id}_compressed.jpg`;
+    ? `http://localhost:8000/uploads/${case_id}_original.jpg`
+    : `http://localhost:8000/uploads/${case_id}_compressed.jpg`;
     
   const rightImage = role === 'rural'
-    ? `${import.meta.env.VITE_API_URL}/uploads/${case_id}_compressed.jpg`
-    : `${import.meta.env.VITE_API_URL}/uploads/${case_id}_restored.jpg`;
+    ? `http://localhost:8000/uploads/${case_id}_compressed.jpg`
+    : `http://localhost:8000/uploads/${case_id}_restored.jpg`;
 
   const leftLabel = role === 'rural' ? "Original Biopsy" : "Received (Compressed)";
   const rightLabel = role === 'rural' ? "Sent (Compressed)" : "AI Restored (High-Res)";

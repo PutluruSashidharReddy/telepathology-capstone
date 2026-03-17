@@ -10,3 +10,5 @@ pillow
 python-dotenv
 pymongo[srv]
 motor[srv]
+python-jose[cryptography]
+websockets
