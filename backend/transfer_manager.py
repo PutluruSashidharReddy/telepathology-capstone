@@ -1,5 +1,6 @@
 import asyncio
 import time
+import random
 from datetime import datetime
 from database import transfers, logs
 import torch
@@ -18,7 +19,6 @@ def get_dynamic_compression_ratio(recent_network_history=None):
     """
     try:
         if recent_network_history is None:
-            # Fallback if we don't have ping data yet
             return "STANDARD_COMPRESSION"
 
         with torch.no_grad():
@@ -45,20 +45,42 @@ async def log_event(msg, type="info", sender=None, receiver=None):
         "receiver": receiver   # Save who it's for
     })
 
-# 2. UPDATE WORKER SIGNATURE
+# 2. THE NEW DTN STORE-AND-FORWARD WORKER
 async def dtn_transfer_worker(case_id, total_size, priority, real_network_speed, sender, receiver):
     chunk_size = 1024 * 50 
     total_chunks = (total_size // chunk_size) + 1
     current_chunk = 0
     speed_readings = []
+    connection_drops = 0
     
     seconds_per_chunk = chunk_size / real_network_speed
     if priority == "High": seconds_per_chunk /= 1.5 
 
-    # PASS SENDER/RECEIVER TO LOGS
-    await log_event(f"🚀 Started: Case {case_id} -> {receiver}", "start", sender, receiver)
+    await log_event(f"🚀 Started DTN Transfer: Case {case_id} -> {receiver}", "start", sender, receiver)
 
+    # THE DTN LOOP
     while current_chunk < total_chunks:
+        # 1. Simulate Rural Network Reliability based on your React UI settings
+        reliability = 0.95 if NETWORK_CONFIG.get("condition") == "Real-Time" else 0.60
+        is_connected = random.random() <= reliability
+
+        # 2. Simulate the Drop and Store-and-Forward Queue
+        if not is_connected:
+            connection_drops += 1
+            await log_event(f"⚠️ Network Drop! DTN Storing chunk {current_chunk + 1} locally.", "warning", sender, receiver)
+            
+            # Update UI to show the drop
+            await transfers.update_one({"case_id": case_id}, {
+                "$set": { "status": "Network Dropped - Stored 📦", "speed": "0 KB/s" }
+            })
+            
+            # Wait for connection to return
+            await asyncio.sleep(random.uniform(1.0, 3.0)) 
+            
+            await log_event(f"🔄 Connection Restored! Forwarding chunk {current_chunk + 1}...", "info", sender, receiver)
+            continue # Retry sending the exact same chunk (Store-and-Forward)
+
+        # 3. Network is Up - Send Chunk
         start_time = time.perf_counter()
         await asyncio.sleep(seconds_per_chunk)
         
@@ -70,6 +92,7 @@ async def dtn_transfer_worker(case_id, total_size, priority, real_network_speed,
         current_chunk += 1
         pct = int((current_chunk / total_chunks) * 100)
         
+        # Update MongoDB for the React UI to read
         if current_chunk % 5 == 0 or current_chunk == total_chunks:
             await transfers.update_one({"case_id": case_id}, {
                 "$set": { 
@@ -87,4 +110,4 @@ async def dtn_transfer_worker(case_id, total_size, priority, real_network_speed,
             "stats": { "avg": f"{int(avg_spd)} KB/s", "max": "0 KB/s", "min": "0 KB/s" }
         }
     })
-    await log_event(f"✅ Finished: Case {case_id}", "success", sender, receiver)
+    await log_event(f"✅ Finished: Case {case_id} (Handled {connection_drops} drops)", "success", sender, receiver)

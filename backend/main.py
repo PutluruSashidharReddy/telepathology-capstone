@@ -11,9 +11,11 @@ import uuid, os, time
 from datetime import datetime
 
 app = FastAPI()
+
 @app.get("/")
 async def root():
     return {"message": "Telepathology API is running successfully!", "status": "Healthy"}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -107,29 +109,21 @@ async def upload(
         quality = 95 if priority == "High" else 15
         
         # 2. Pipeline Step 2: TRUE Neural Compression
-        # Returns the raw mathematical bytes AND a visual proxy for the UI
         compressed_content, proxy_content = compress_image(content, quality)
         
         # 3. Pipeline Step 6: Reconstruction (Neural Decoder)
-        # We pass the raw mathematical bytes through the decoder
         restored_content = reconstruct_image(compressed_content)
         
         case_id = uuid.uuid4().hex[:6].upper()
         
         with open(f"uploads/{case_id}_original.jpg", "wb") as f: f.write(content)
-        
-        # Save the actual mathematical file (Used for system metrics & transmission logic)
         with open(f"uploads/{case_id}_compressed.bin", "wb") as f: f.write(compressed_content)
-        
-        # Save the visual proxy so React doesn't crash on <img src>
         with open(f"uploads/{case_id}_compressed.jpg", "wb") as f: f.write(proxy_content)
-        
-        # Save the AI-Restored version for the Hospital
         with open(f"uploads/{case_id}_restored.jpg", "wb") as f: f.write(restored_content) 
 
         processed_batch.append({
             "case_id": case_id, "diagnosis": diagnosis, "priority": priority, 
-            "file_size": len(compressed_content), # System reads the tiny tensor size!
+            "file_size": len(compressed_content),
             "original_size": len(content),
             "network_speed": real_speed_bps, "sender": sender, "receiver": receiver
         })
@@ -146,7 +140,8 @@ async def upload(
             "case_id": case['case_id'], "status": "Queued", "progress": 0, "speed": "0 KB/s", 
             "total_chunks": 100, "current_chunk": 0, "stats": {"avg": "0 KB/s", "max": "0 KB/s", "min": "0 KB/s"}
         })
-        # PASS SENDER/RECEIVER TO WORKER
+        
+        # TRIGGERS THE DTN STORE-AND-FORWARD WORKER
         bg.add_task(dtn_transfer_worker, case['case_id'], case['file_size'], case['priority'], case['network_speed'], case['sender'], case['receiver'])
     
     return {"msg": "Batch Processed"}
@@ -156,7 +151,6 @@ async def get_data(username: str, role: str):
     if role == "rural": query = {"sender": username}
     else: query = {"receiver": username}  
     
-    # FIX: Removed the .limit(20) and increased .to_list() to 1000 so all older cases load
     all_cases = await cases.find(query).sort("timestamp", -1).to_list(1000)
     data = []
     for c in all_cases:
@@ -168,12 +162,8 @@ async def get_data(username: str, role: str):
         data.append(c)
     return data
 
-# --- UPDATED LOGS ENDPOINT (FILTERED) ---
 @app.get("/logs")
 async def get_logs(username: str, role: str):
-    # Filter logs where:
-    # 1. You are the Sender (Rural)
-    # 2. You are the Receiver (Hospital)
     query = { 
         "$or": [
             {"sender": username}, 
@@ -181,7 +171,6 @@ async def get_logs(username: str, role: str):
         ] 
     }
     
-    # FIX: Increased limit from 50 to 1000 to ensure old logs aren't hidden
     l = await logs.find(query).sort("timestamp", -1).to_list(1000)
     for x in l: x["_id"] = str(x["_id"])
     return l
