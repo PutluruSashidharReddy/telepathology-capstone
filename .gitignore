@@ -12,3 +12,5 @@ backend/.env
 frontend/.env
 backend/uploads/*
 !backend/uploads/.gitkeep
+testing/
+*.pdf
