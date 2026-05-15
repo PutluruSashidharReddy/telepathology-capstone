@@ -9,6 +9,7 @@ export default function ImageModal({ caseData, role, onClose }) {
 
   // --- UPDATED URLS TO POINT TO CLOUD BACKEND ---
   // --- CORRECTED URLS ---
+  // --- CORRECTED URLS ---
   const leftImage = role === 'rural' 
     ? `${import.meta.env.VITE_API_URL}/uploads/${case_id}_original.jpg`
     // HOSPITAL SWAP: Show the gray mathematical proxy as what was "Received" over the network
@@ -16,7 +17,7 @@ export default function ImageModal({ caseData, role, onClose }) {
 
   const rightImage = role === 'rural'
     ? `${import.meta.env.VITE_API_URL}/uploads/${case_id}_compressed.jpg`
-    // HOSPITAL SWAP: Show the AI's attempt to rebuild the image on the right
+    // HOSPITAL SWAP: Show the AI's beautifully sharp reconstruction on the right
     : `${import.meta.env.VITE_API_URL}/uploads/${case_id}_restored.jpg`;
 
   const leftLabel = role === 'rural' ? "Original Biopsy" : "Received (Compressed)";
