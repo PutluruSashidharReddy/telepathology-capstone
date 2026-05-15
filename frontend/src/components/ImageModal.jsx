@@ -1,3 +1,6 @@
+import React from 'react';
+import BaselineTable from './BaselineTable'; // Import the new Baseline Table
+
 export default function ImageModal({ caseData, role, onClose }) {
   const { case_id, original_size, compressed_size, diagnosis } = caseData; 
 
@@ -7,9 +10,7 @@ export default function ImageModal({ caseData, role, onClose }) {
     return (bytes / 1024).toFixed(0) + " KB";
   };
 
-  // --- UPDATED URLS TO POINT TO CLOUD BACKEND ---
-  // --- CORRECTED URLS ---
-  // --- CORRECTED URLS ---
+  // --- CORRECTED URLS TO POINT TO CLOUD BACKEND ---
   const leftImage = role === 'rural' 
     ? `${import.meta.env.VITE_API_URL}/uploads/${case_id}_original.jpg`
     // HOSPITAL SWAP: Show the gray mathematical proxy as what was "Received" over the network
@@ -35,7 +36,7 @@ export default function ImageModal({ caseData, role, onClose }) {
 
   return (
     <div className="chat-overlay" onClick={onClose}>
-      <div className="chat-window" style={{width: '900px', maxWidth:'95vw', height:'80vh'}} onClick={e => e.stopPropagation()}>
+      <div className="chat-window" style={{width: '900px', maxWidth:'95vw', height:'85vh', display: 'flex', flexDirection: 'column'}} onClick={e => e.stopPropagation()}>
         
         {/* Header */}
         <div className="chat-header">
@@ -54,23 +55,40 @@ export default function ImageModal({ caseData, role, onClose }) {
           <button onClick={onClose} style={{background:'transparent', border:'none', color:'white', fontSize:'24px', cursor:'pointer'}}>×</button>
         </div>
 
-        {/* Body */}
-        <div className="chat-body" style={{flexDirection: 'row', gap: '20px', padding: '20px', overflow: 'hidden', background:'#020617'}}>
-          <div style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-            <div style={{marginBottom: '5px', fontWeight: 'bold', color: '#3b82f6'}}>{leftLabel}</div>
-            <div style={{fontSize: '12px', color: '#94a3b8', marginBottom: '10px', fontFamily:'monospace'}}>Size: <span style={{color:'white'}}>{leftSize}</span></div>
-            <div style={{flex: 1, width: '100%', border: '1px solid #334155', borderRadius: '8px', overflow: 'hidden', background: '#000', position:'relative'}}>
-              <img src={leftImage} alt="Left" style={{width: '100%', height: '100%', objectFit: 'contain'}} />
+        {/* Body - Adjusted to column layout with scrolling so table fits below images */}
+        <div className="chat-body" style={{display: 'flex', flexDirection: 'column', gap: '20px', padding: '20px', overflowY: 'auto', background:'#020617', flex: 1}}>
+          
+          {/* Images Row */}
+          <div style={{display: 'flex', flexDirection: 'row', gap: '20px', minHeight: '350px', flexShrink: 0}}>
+            <div style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+              <div style={{marginBottom: '5px', fontWeight: 'bold', color: '#3b82f6'}}>{leftLabel}</div>
+              <div style={{fontSize: '12px', color: '#94a3b8', marginBottom: '10px', fontFamily:'monospace'}}>Size: <span style={{color:'white'}}>{leftSize}</span></div>
+              <div style={{flex: 1, width: '100%', border: '1px solid #334155', borderRadius: '8px', overflow: 'hidden', background: '#000', position:'relative'}}>
+                <img src={leftImage} alt="Left" style={{width: '100%', height: '100%', objectFit: 'contain'}} />
+              </div>
+            </div>
+            
+            <div style={{width: '1px', background: '#334155'}}></div>
+            
+            <div style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+              <div style={{marginBottom: '5px', fontWeight: 'bold', color: '#22c55e'}}>{rightLabel}</div>
+              <div style={{fontSize: '12px', color: '#94a3b8', marginBottom: '10px', fontFamily:'monospace'}}>Size: <span style={{color:'white'}}>{rightSize}</span></div>
+              <div style={{flex: 1, width: '100%', border: '1px solid #334155', borderRadius: '8px', overflow: 'hidden', background: '#000', position:'relative'}}>
+                <img src={rightImage} alt="Right" style={{width: '100%', height: '100%', objectFit: 'contain'}} />
+              </div>
             </div>
           </div>
-          <div style={{width: '1px', background: '#334155'}}></div>
-          <div style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-            <div style={{marginBottom: '5px', fontWeight: 'bold', color: '#22c55e'}}>{rightLabel}</div>
-            <div style={{fontSize: '12px', color: '#94a3b8', marginBottom: '10px', fontFamily:'monospace'}}>Size: <span style={{color:'white'}}>{rightSize}</span></div>
-            <div style={{flex: 1, width: '100%', border: '1px solid #334155', borderRadius: '8px', overflow: 'hidden', background: '#000', position:'relative'}}>
-              <img src={rightImage} alt="Right" style={{width: '100%', height: '100%', objectFit: 'contain'}} />
+
+          {/* Baseline Benchmarking Table */}
+          {caseData.transfer && caseData.transfer.baseline_comparison && (
+            <div style={{ flexShrink: 0 }}>
+              <BaselineTable 
+                baselines={caseData.transfer.baseline_comparison} 
+                drops={caseData.transfer.network_drops_handled} 
+              />
             </div>
-          </div>
+          )}
+
         </div>
 
         <div className="chat-footer" style={{justifyContent: 'center', fontSize: '12px', color: '#64748b'}}>
@@ -79,4 +97,4 @@ export default function ImageModal({ caseData, role, onClose }) {
       </div>
     </div>
   );
-} 
+}
