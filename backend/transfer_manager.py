@@ -2,8 +2,38 @@ import asyncio
 import time
 from datetime import datetime
 from database import transfers, logs
+import torch
+from ai_engine import LinkQualityLSTM, DEVICE
 
 NETWORK_CONFIG = { "condition": "Real-Time", "active_high_priority": False, "paused_cases": set() }
+
+# Initialize the predictive model
+predictive_model = LinkQualityLSTM().to(DEVICE)
+predictive_model.eval()
+
+def get_dynamic_compression_ratio(recent_network_history=None):
+    """
+    Predicts network drops to adjust compression.
+    Failsafes to STANDARD_COMPRESSION if data is missing or model fails.
+    """
+    try:
+        if recent_network_history is None:
+            # Fallback if we don't have ping data yet
+            return "STANDARD_COMPRESSION"
+
+        with torch.no_grad():
+            predicted_bandwidth = predictive_model(recent_network_history.to(DEVICE))
+            
+        # If predicted bandwidth drops below 100 KB/s, aggressively compress
+        if predicted_bandwidth.item() < 100.0: 
+            return "HIGH_COMPRESSION"
+        else:
+            return "STANDARD_COMPRESSION"
+            
+    except Exception as e:
+        print(f"LSTM Prediction failed, defaulting to standard: {e}")
+        return "STANDARD_COMPRESSION"
+
 
 # 1. UPDATE LOG FUNCTION TO ACCEPT USER INFO
 async def log_event(msg, type="info", sender=None, receiver=None):

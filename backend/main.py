@@ -94,7 +94,7 @@ async def upload(
             client_start_ms = float(x_upload_start)
             duration_seconds = (time.time() * 1000 - client_start_ms) / 1000
             if duration_seconds < 0.1: duration_seconds = 0.1
-            total_batch_size = sum([file.size for file in files]) # approximate
+            total_batch_size = sum([file.size for file in files])
             real_speed_bps = total_batch_size / duration_seconds
         except: pass
 
@@ -106,24 +106,31 @@ async def upload(
         priority = "High" if diagnosis == "Malignant" else "Normal"
         quality = 95 if priority == "High" else 15
         
-        # 2. Pipeline Step 2: Compression
-        compressed_content = compress_image(content, quality)
+        # 2. Pipeline Step 2: TRUE Neural Compression
+        # Returns the raw mathematical bytes AND a visual proxy for the UI
+        compressed_content, proxy_content = compress_image(content, quality)
         
-        # 3. Pipeline Step 6: Reconstruction (ResUNet)
-        # We pass the compressed bytes through your AI to restore them
+        # 3. Pipeline Step 6: Reconstruction (Neural Decoder)
+        # We pass the raw mathematical bytes through the decoder
         restored_content = reconstruct_image(compressed_content)
         
         case_id = uuid.uuid4().hex[:6].upper()
         
         with open(f"uploads/{case_id}_original.jpg", "wb") as f: f.write(content)
-        with open(f"uploads/{case_id}_compressed.jpg", "wb") as f: f.write(compressed_content)
         
-        # Save the AI-Restored version for the Hospital!
+        # Save the actual mathematical file (Used for system metrics & transmission logic)
+        with open(f"uploads/{case_id}_compressed.bin", "wb") as f: f.write(compressed_content)
+        
+        # Save the visual proxy so React doesn't crash on <img src>
+        with open(f"uploads/{case_id}_compressed.jpg", "wb") as f: f.write(proxy_content)
+        
+        # Save the AI-Restored version for the Hospital
         with open(f"uploads/{case_id}_restored.jpg", "wb") as f: f.write(restored_content) 
 
         processed_batch.append({
             "case_id": case_id, "diagnosis": diagnosis, "priority": priority, 
-            "file_size": len(compressed_content), "original_size": len(content),
+            "file_size": len(compressed_content), # System reads the tiny tensor size!
+            "original_size": len(content),
             "network_speed": real_speed_bps, "sender": sender, "receiver": receiver
         })
 
