@@ -45,29 +45,52 @@ class CancerNet(nn.Module):
         x=self.attention(x); x=self.avgpool(x); x=torch.flatten(x, 1)
         return self.fc(x)
 
-# --- Neural Compression (Encoder) ---
-class NeuralEncoder(nn.Module):
-    def __init__(self):
-        super(NeuralEncoder, self).__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=3, stride=2, padding=1), nn.ReLU(),
-            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1), nn.ReLU(),
-            nn.Conv2d(32, 16, kernel_size=3, stride=2, padding=1), nn.ReLU()
+# --- Clinical Neural Compression (Residual Autoencoder) ---
+class ResidualBlock(nn.Module):
+    def __init__(self, channels):
+        super(ResidualBlock, self).__init__()
+        self.conv_block = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(channels),
+            nn.PReLU(),
+            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(channels)
         )
     def forward(self, x):
-        return self.encoder(x)
+        return x + self.conv_block(x)
 
-# --- Neural Decompression (Decoder) ---
-class NeuralDecoder(nn.Module):
+class ClinicalEncoder(nn.Module):
     def __init__(self):
-        super(NeuralDecoder, self).__init__()
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(16, 32, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU(),
-            nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU(),
-            nn.ConvTranspose2d(16, 3, kernel_size=3, stride=2, padding=1, output_padding=1), nn.Sigmoid()
-        )
+        super(ClinicalEncoder, self).__init__()
+        self.initial = nn.Sequential(nn.Conv2d(3, 64, kernel_size=3, padding=1), nn.PReLU())
+        self.down1 = nn.Sequential(nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1), nn.PReLU())
+        self.res1 = ResidualBlock(128)
+        self.down2 = nn.Sequential(nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1), nn.PReLU())
+        self.res2 = ResidualBlock(256)
+        self.down3 = nn.Sequential(nn.Conv2d(256, 32, kernel_size=3, stride=2, padding=1), nn.PReLU())
+        
     def forward(self, x):
-        return self.decoder(x)
+        x = self.initial(x)
+        x = self.res1(self.down1(x))
+        x = self.res2(self.down2(x))
+        return self.down3(x)
+
+class ClinicalDecoder(nn.Module):
+    def __init__(self):
+        super(ClinicalDecoder, self).__init__()
+        self.initial = nn.Sequential(nn.Conv2d(32, 256, kernel_size=3, padding=1), nn.PReLU())
+        self.res1 = ResidualBlock(256)
+        self.up1 = nn.Sequential(nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2, padding=1, output_padding=1), nn.PReLU())
+        self.res2 = ResidualBlock(128)
+        self.up2 = nn.Sequential(nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=1), nn.PReLU())
+        self.res3 = ResidualBlock(64)
+        self.up3 = nn.Sequential(nn.ConvTranspose2d(64, 3, kernel_size=3, stride=2, padding=1, output_padding=1), nn.Sigmoid())
+
+    def forward(self, x):
+        x = self.res1(self.initial(x))
+        x = self.res2(self.up1(x))
+        x = self.res3(self.up2(x))
+        return self.up3(x)
 
 # --- Predictive Link Quality (LSTM) ---
 class LinkQualityLSTM(nn.Module):
@@ -81,42 +104,39 @@ class LinkQualityLSTM(nn.Module):
         h_0 = torch.zeros(1, input_seq.size(0), self.hidden_layer_size).to(input_seq.device)
         c_0 = torch.zeros(1, input_seq.size(0), self.hidden_layer_size).to(input_seq.device)
         lstm_out, _ = self.lstm(input_seq, (h_0, c_0))
-        predictions = self.linear(lstm_out[:, -1, :])
-        return predictions
+        return self.linear(lstm_out[:, -1, :])
 
 # ==========================================
 # 2. LOAD TRAINED WEIGHTS
 # ==========================================
 cancer_model = CancerNet().to(DEVICE)
-neural_encoder = NeuralEncoder().to(DEVICE)
-neural_decoder = NeuralDecoder().to(DEVICE)
+clinical_encoder = ClinicalEncoder().to(DEVICE)
+clinical_decoder = ClinicalDecoder().to(DEVICE)
 
 # Safely load weights
 try:
-    # Based on your ls image, ensure this name matches the 108MB file exactly
     cancer_model.load_state_dict(torch.load("models/final_cancer_model.pth", map_location=DEVICE))
     cancer_model.eval()
-    print("✅ CancerNet (ResNet50+SE) Loaded.")
+    print("✅ CancerNet Loaded.")
 except Exception as e: print(f"⚠️ CancerNet Error: {e}")
 
 try:
-    neural_encoder.load_state_dict(torch.load("models/neural_encoder.pth", map_location=DEVICE))
-    neural_encoder.eval()
-    print("✅ Neural Encoder Loaded.")
-except Exception as e: print(f"⚠️ Neural Encoder Error: {e}")
+    clinical_encoder.load_state_dict(torch.load("models/clinical_encoder.pth", map_location=DEVICE))
+    clinical_encoder.eval()
+    print("✅ Clinical Encoder Loaded.")
+except Exception as e: print(f"⚠️ Clinical Encoder Error: {e}")
 
 try:
-    neural_decoder.load_state_dict(torch.load("models/neural_decoder.pth", map_location=DEVICE))
-    neural_decoder.eval()
-    print("✅ Neural Decoder Loaded.")
-except Exception as e: print(f"⚠️ Neural Decoder Error: {e}")
+    clinical_decoder.load_state_dict(torch.load("models/clinical_decoder.pth", map_location=DEVICE))
+    clinical_decoder.eval()
+    print("✅ Clinical Decoder Loaded.")
+except Exception as e: print(f"⚠️ Clinical Decoder Error: {e}")
 
 # ==========================================
 # 3. PIPELINE FUNCTIONS FOR FASTAPI
 # ==========================================
 
 def analyze_image(image_bytes):
-    """Step 3: Attention-Based Triage (CancerNet)"""
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
@@ -132,7 +152,6 @@ def analyze_image(image_bytes):
     return "Malignant" if pred.item() == 1 else "Benign"
 
 def compress_image(image_bytes, quality):
-    """Step 2: TRUE Neural Compression (Encoder)"""
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor()
@@ -141,38 +160,27 @@ def compress_image(image_bytes, quality):
     tensor = transform(img).unsqueeze(0).to(DEVICE)
     
     with torch.no_grad():
-        # The AI shrinks the image into a latent tensor
-        latent_tensor = neural_encoder(tensor)
+        latent_tensor = clinical_encoder(tensor)
         
-    # Convert the tensor to 16-bit floats to save maximum space, then to raw bytes
     latent_bytes = latent_tensor.half().cpu().numpy().tobytes()
     
-    # --- UI VISUALIZATION PROXY ---
-    # We generate a visible 'proxy' image for the React Frontend to display
-    # by averaging the latent channels into a grayscale feature map.
-    proxy_tensor = latent_tensor.mean(dim=1).squeeze(0).cpu() # Shape: (28, 28)
-    
-    # Normalize to 0-1 range so it saves as a valid JPEG
+    # UI VISUALIZATION PROXY
+    proxy_tensor = latent_tensor.mean(dim=1).squeeze(0).cpu() 
     proxy_tensor = (proxy_tensor - proxy_tensor.min()) / (proxy_tensor.max() - proxy_tensor.min() + 1e-5)
-    proxy_img = transforms.ToPILImage()(proxy_tensor)
-    proxy_img = proxy_img.resize((224, 224), Image.NEAREST)
+    proxy_img = transforms.ToPILImage()(proxy_tensor).resize((224, 224), Image.NEAREST)
     
     proxy_buffer = io.BytesIO()
     proxy_img.save(proxy_buffer, format="JPEG")
-    proxy_bytes = proxy_buffer.getvalue()
     
-    return latent_bytes, proxy_bytes
+    return latent_bytes, proxy_buffer.getvalue()
 
 def reconstruct_image(compressed_bytes):
-    """Step 6: TRUE Neural Decompression (Decoder)"""
-    # Convert the raw bytes back into a numpy array, then to a PyTorch tensor
-    # We know the shape is (1, 16, 28, 28) based on our Encoder architecture
-    latent_np = np.frombuffer(compressed_bytes, dtype=np.float16).reshape(1, 16, 28, 28)
+    # Shape is now 32x28x28 due to the deeper residual architecture
+    latent_np = np.frombuffer(compressed_bytes, dtype=np.float16).reshape(1, 32, 28, 28)
     latent_tensor = torch.from_numpy(latent_np).float().to(DEVICE)
     
     with torch.no_grad():
-        # The AI decodes the latent math back into visual pixels
-        restored_tensor = neural_decoder(latent_tensor)
+        restored_tensor = clinical_decoder(latent_tensor)
         
     restored_img = transforms.ToPILImage()(restored_tensor.squeeze(0).cpu())
     
