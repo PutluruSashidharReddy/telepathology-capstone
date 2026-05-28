@@ -6,7 +6,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Connect to MongoDB (Defaults to local if MONGO_URL is missing)
-client = AsyncIOMotorClient(os.getenv("MONGO_URL", "mongodb://localhost:27017"))
+mongo_url = os.getenv("MONGO_URL")
+if mongo_url:
+    client = AsyncIOMotorClient(mongo_url)
+else:
+    from mongomock_motor import AsyncMongoMockClient
+    client = AsyncMongoMockClient()
+    print("⚠️ Using Mock MongoDB for testing.")
+
 db = client.telepathology_db
 
 # Collections

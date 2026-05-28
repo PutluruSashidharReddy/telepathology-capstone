@@ -32,18 +32,35 @@ class SE_Block(nn.Module):
         return x * y.expand_as(x)
 
 class CancerNet(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes=8): # Changed from 2 to 8 for BreakHis subtypes
         super(CancerNet, self).__init__()
         self.base = models.resnet50(weights=None) 
         self.layer0 = nn.Sequential(self.base.conv1, self.base.bn1, self.base.relu, self.base.maxpool)
         self.layer1=self.base.layer1; self.layer2=self.base.layer2; self.layer3=self.base.layer3; self.layer4=self.base.layer4
         self.attention = SE_Block(2048)
         self.avgpool = self.base.avgpool
-        self.fc = nn.Sequential(nn.Linear(2048, 512), nn.ReLU(), nn.Dropout(0.4), nn.Linear(512, 2))
+        self.fc = nn.Sequential(nn.Linear(2048, 512), nn.ReLU(), nn.Dropout(0.4), nn.Linear(512, num_classes))
     def forward(self, x):
         x=self.layer0(x); x=self.layer1(x); x=self.layer2(x); x=self.layer3(x); x=self.layer4(x)
         x=self.attention(x); x=self.avgpool(x); x=torch.flatten(x, 1)
         return self.fc(x)
+
+# BreakHis Subtypes Mapping
+SUBTYPES = [
+    "Adenosis (B)", "Fibroadenoma (B)", "Phyllodes Tumor (B)", "Tubular Adenoma (B)",
+    "Ductal Carcinoma (M)", "Lobular Carcinoma (M)", "Mucinous Carcinoma (M)", "Papillary Carcinoma (M)"
+]
+
+def get_class_weights():
+    """
+    Address dataset imbalance (Change 5).
+    Example weights based on 477 Benign vs 1086 Malignant.
+    In a real scenario, these would be calculated per-class for all 8 subtypes.
+    """
+    # Inverse frequency weights: total / (num_classes * count)
+    # Placeholder weights for 8 classes
+    weights = torch.tensor([2.5, 1.2, 3.0, 2.8, 0.8, 1.5, 1.3, 1.7], dtype=torch.float)
+    return weights.to(DEVICE)
 
 # --- Clinical Neural Compression (Residual Autoencoder) ---
 class ResidualBlock(nn.Module):
@@ -148,8 +165,30 @@ def analyze_image(image_bytes):
     with torch.no_grad():
         outputs = cancer_model(tensor)
         _, pred = torch.max(outputs, 1)
-        
-    return "Malignant" if pred.item() == 1 else "Benign"
+    
+    subtype = SUBTYPES[pred.item()]
+    diagnosis = "Malignant" if "(M)" in subtype else "Benign"
+    return f"{diagnosis} ({subtype})"
+
+# ==========================================
+# 4. TRAINING & EVALUATION UTILITIES
+# ==========================================
+
+def get_kfold_indices(dataset_size, k=5, seed=42):
+    """
+    Implements K-Fold Cross Validation (Change 6).
+    Provides indices for statistically reliable results.
+    """
+    np.random.seed(seed)
+    indices = np.arange(dataset_size)
+    np.random.shuffle(indices)
+    fold_size = dataset_size // k
+    folds = []
+    for i in range(k):
+        test_idx = indices[i*fold_size : (i+1)*fold_size]
+        train_idx = np.concatenate([indices[:i*fold_size], indices[(i+1)*fold_size:]])
+        folds.append((train_idx, test_idx))
+    return folds
 
 def compress_image(image_bytes, quality):
     transform = transforms.Compose([

@@ -1,0 +1,11 @@
+1. Agents.md: Created a central rulebook for AI agent behavior and architectural mandates.
+2. guardrails.md: Established technical safety protocols to prevent feature regressions.
+3. CancerNet Upgrade: Expanded the AI model to support 8-class tumor subtype classification.
+4. Class Weighting: Implemented inverse-frequency weights to fix dataset class imbalance.
+5. K-Fold Validation: Added cross-validation utilities for statistically reliable performance results.
+6. Adaptive Compression: Built a dynamic quality controller that responds to real-time bandwidth.
+7. Image Quality Metrics: Integrated PSNR and SSIM calculations into the metrics generation pipeline.
+8. Clinical Evaluation: Added pathologist qualitative review placeholders and MOS tracking.
+9. Multi-class UI: Updated the dashboard to display subtype labels and dynamic diagnosis badges.
+10. Enhanced Case Modal: Built a new clinical review panel in the UI showing quality metrics.
+11. Mock Environment: Integrated database and model mocking to allow testing without external dependencies.

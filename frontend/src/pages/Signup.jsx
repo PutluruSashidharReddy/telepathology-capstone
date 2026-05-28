@@ -11,7 +11,7 @@ export default function Signup() {
       await axios.post(`${import.meta.env.VITE_API_URL}/auth/signup`, formData);
       alert("Account Created! Please Login.");
       navigate('/');
-    } catch (e) {
+    } catch {
       alert("Signup Failed: Username might exist.");
     }
   };

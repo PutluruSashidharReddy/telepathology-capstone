@@ -33,7 +33,7 @@ export default function ChatBox({ caseId, user, onClose }) {
           }
           return [...prev, msg];
         });
-      } catch (e) {
+      } catch {
         console.error("Received non-JSON message:", event.data);
       }
     };

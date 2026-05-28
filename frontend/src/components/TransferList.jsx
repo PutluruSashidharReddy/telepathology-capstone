@@ -34,7 +34,7 @@ export default function TransferList({ cases, role, onChat, onSelect }) {
               <div className="transfer-info">
                 <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
                   <h3 style={{margin:0}}>Case #{c.case_id}</h3>
-                  <span className={`badge ${c.diagnosis === 'Malignant' ? 'bg-red' : 'bg-green'}`}>{c.diagnosis}</span>
+                  <span className={`badge ${c.diagnosis.includes('Malignant') ? 'bg-red' : 'bg-green'}`}>{c.diagnosis}</span>
                   <button onClick={(e) => { e.stopPropagation(); onChat(c.case_id); }} className="chat-btn">💬 Chat</button>
                 </div>
                 

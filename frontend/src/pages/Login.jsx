@@ -19,7 +19,7 @@ export default function Login() {
       localStorage.setItem('role', res.data.role);
       localStorage.setItem('username', formData.username);
       navigate('/dashboard');
-    } catch (e) {
+    } catch {
       alert("Login Failed: Check credentials.");
     }
   };

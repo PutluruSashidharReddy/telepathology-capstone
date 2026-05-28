@@ -34,7 +34,7 @@ export default function Dashboard() {
         
         setCases(c.data);
         setLogs(l.data);
-      } catch (e) { 
+      } catch { 
         console.error("Backend Offline"); 
       }
     }, 800);

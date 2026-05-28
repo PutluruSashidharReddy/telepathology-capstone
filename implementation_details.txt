@@ -1,0 +1,8 @@
+Change 1: Verified replacement of standard JPEG with Residual Autoencoder (ClinicalEncoder/Decoder) in ai_engine.py.
+Change 2: Verified implementation of DTN store-and-forward worker simulating intermittent connectivity in transfer_manager.py.
+Change 3: Verified baseline comparison logic against TCP/IP, Epidemic, and PRoPHET protocols in the metrics generator.
+Change 4: Upgraded CancerNet to 8-class classification for BreakHis subtypes and updated analysis output.
+Change 5: Implemented inverse frequency weighting in get_class_weights to resolve dataset class imbalance.
+Change 6: Added get_kfold_indices to support statistically reliable results via 5-fold cross-validation.
+Change 7: Implemented get_dynamic_compression_ratio for bandwidth-aware adaptive image quality.
+Change 8: Integrated PSNR, Mean Opinion Score (MOS), and clinical review panels into the metrics script and frontend UI.

@@ -12,14 +12,21 @@ predictive_model = LinkQualityLSTM().to(DEVICE)
 predictive_model.eval()
 
 def get_dynamic_compression_ratio(recent_network_history=None):
+    """
+    Adaptive Compression (Change 7).
+    Adjusts compression quality based on predicted bandwidth.
+    """
     try:
-        if recent_network_history is None: return "STANDARD_COMPRESSION"
+        if recent_network_history is None: return 85 # Default high quality
         with torch.no_grad():
             predicted_bandwidth = predictive_model(recent_network_history.to(DEVICE))
-        if predicted_bandwidth.item() < 100.0: return "HIGH_COMPRESSION"
-        else: return "STANDARD_COMPRESSION"
+        
+        bw = predicted_bandwidth.item()
+        if bw < 50.0: return 10    # Low bandwidth -> High compression (Low quality)
+        elif bw < 200.0: return 40 # Moderate bandwidth
+        else: return 90           # High bandwidth -> Low compression (High quality)
     except Exception as e:
-        return "STANDARD_COMPRESSION"
+        return 75 # Fallback
 
 async def log_event(msg, type="info", sender=None, receiver=None):
     await logs.insert_one({
