@@ -12,3 +12,5 @@ pymongo[srv]
 motor[srv]
 python-jose[cryptography]
 websockets
+scikit-image
+opencv-python-headless

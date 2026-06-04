@@ -1,0 +1,15 @@
+1. The compression module uses standard JPEG, not the deep learning ResUNet encoder as claimed. This needs to be replaced with actual neural compression.
+
+2. The DTN transmission is a simple timer simulation, not a real networking protocol. A proper simulation with real intermittent connectivity is needed to validate the 100% success rate claim.
+
+3. There is no comparison against any baseline protocol. Comparing against TCP/IP and standard DTN protocols like Epidemic Routing and PRoPHET is a basic requirement.
+
+4. Only binary classification is performed. The BreakHis dataset supports 8 tumor subtypes which could be utilized for multi-class classification.
+
+5. The dataset class imbalance (477 benign vs 1086 malignant) is never addressed. Class weighting or oversampling should be applied.
+
+6. Results are from a single train-test split. K-fold cross validation is needed for statistically reliable results.
+
+7. Compression ratio is fixed regardless of network conditions. Making it adaptive based on available bandwidth would improve both transmission and image quality.
+
+8. Image quality is evaluated only with PSNR and SSIM. Pathologist evaluation of reconstructed images is needed to confirm diagnostic usability.

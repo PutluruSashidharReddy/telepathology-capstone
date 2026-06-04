@@ -17,3 +17,15 @@ These guardrails ensure that new changes do not break existing core functionalit
 ## 4. API Standards
 - **CORS:** Ensure `CORSMiddleware` remains configured to allow communication with the React frontend.
 - **Upload Pipeline:** The sequence: `analyze_image` -> `compress_image` -> `reconstruct_image` -> `BackgroundTasks(dtn_transfer_worker)` is the verified clinical pipeline and should be preserved.
+
+## 5. Core Features to Protect
+- **Security & Authentication:** User roles (Rural/Hospital) and JWT authentication must remain secure.
+- **Background Tasks:** The `dtn_transfer_worker` must continue to run as a background task.
+- **Real-time Features:** WebSockets for chat and live transfer updates must not be interrupted.
+
+## Regression Checklist
+- [ ] Signup and Login still work.
+- [ ] Image upload completes and triggers background transfer.
+- [ ] Chat messages are delivered and persisted.
+- [ ] Dashboard displays cases and their real-time transfer progress.
+- [ ] Metrics generation script runs without errors.

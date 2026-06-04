@@ -34,7 +34,10 @@ export default function TransferList({ cases, role, onChat, onSelect }) {
               <div className="transfer-info">
                 <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
                   <h3 style={{margin:0}}>Case #{c.case_id}</h3>
-                  <span className={`badge ${c.diagnosis.includes('Malignant') ? 'bg-red' : 'bg-green'}`}>{c.diagnosis}</span>
+                  <div style={{display:'flex', gap:'5px'}}>
+                    <span className={`badge ${c.diagnosis === 'Malignant' ? 'bg-red' : 'bg-green'}`}>{c.diagnosis}</span>
+                    <span style={{fontSize:'10px', background:'#334155', color:'#cbd5e1', padding:'2px 6px', borderRadius:'4px'}}>{c.subtype}</span>
+                  </div>
                   <button onClick={(e) => { e.stopPropagation(); onChat(c.case_id); }} className="chat-btn">💬 Chat</button>
                 </div>
                 
@@ -59,10 +62,18 @@ export default function TransferList({ cases, role, onChat, onSelect }) {
 
             <div style={{marginTop: '12px'}}>
               {isComplete ? (
-                 <div style={{display: 'grid', gridTemplateColumns: '1fr', gap: '10px', background: '#0f172a', padding: '10px', borderRadius: '6px', border: '1px solid #334155'}}>
+                 <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', background: '#0f172a', padding: '10px', borderRadius: '6px', border: '1px solid #334155'}}>
                    <div style={{textAlign: 'center'}}>
-                     <div style={{fontSize: '10px', color: '#94a3b8'}}>AVG SPEED</div>
-                     <div style={{color: '#3b82f6', fontWeight: 'bold', fontSize: '13px'}}>{c.transfer?.stats?.avg}</div>
+                     <div style={{fontSize: '9px', color: '#94a3b8'}}>AVG SPEED</div>
+                     <div style={{color: '#3b82f6', fontWeight: 'bold', fontSize: '11px'}}>{c.transfer?.stats?.avg}</div>
+                   </div>
+                   <div style={{textAlign: 'center', borderLeft:'1px solid #334155', borderRight:'1px solid #334155'}}>
+                     <div style={{fontSize: '9px', color: '#94a3b8'}}>PSNR</div>
+                     <div style={{color: '#22c55e', fontWeight: 'bold', fontSize: '11px'}}>{c.quality_metrics?.psnr || 'N/A'}</div>
+                   </div>
+                   <div style={{textAlign: 'center'}}>
+                     <div style={{fontSize: '9px', color: '#94a3b8'}}>USABILITY</div>
+                     <div style={{color: '#a855f7', fontWeight: 'bold', fontSize: '11px'}}>{c.quality_metrics?.diagnostic_usability ? (c.quality_metrics.diagnostic_usability * 100).toFixed(0) + '%' : 'N/A'}</div>
                    </div>
                  </div>
               ) : (

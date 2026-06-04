@@ -5,9 +5,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 from database import users, cases, transfers, logs, messages
 from auth import get_password_hash, verify_password, create_access_token
-from ai_engine import analyze_image, compress_image, reconstruct_image
-from transfer_manager import dtn_transfer_worker, NETWORK_CONFIG, get_dynamic_compression_ratio
-import uuid, os, time, torch
+from ai_engine import analyze_image, compress_image, reconstruct_image, calculate_metrics
+from transfer_manager import dtn_transfer_worker, NETWORK_CONFIG
+import uuid, os, time
 from datetime import datetime
 
 app = FastAPI()
@@ -100,23 +100,27 @@ async def upload(
             real_speed_bps = total_batch_size / duration_seconds
         except: pass
 
-    # ADAPTIVE COMPRESSION (Change 7)
-    history_tensor = torch.tensor([[real_speed_bps/1e6, 0.5, 0.5]]).unsqueeze(0) # Mock history
-    dynamic_quality = get_dynamic_compression_ratio(history_tensor)
-
     for file in files:
         content = await file.read()
         
-        # 1. Pipeline Step 3: Triage (CancerNet with Multi-class support - Change 4)
-        diagnosis_full = analyze_image(content)
-        priority = "High" if "Malignant" in diagnosis_full else "Normal"
+        # 1. Pipeline Step 3: Triage (CancerNet Multi-class)
+        diagnosis, subtype = analyze_image(content)
+        priority = "High" if diagnosis == "Malignant" else "Normal"
         
-        # 2. Pipeline Step 2: Adaptive Neural Compression
-        # Use dynamic_quality instead of fixed quality
-        compressed_content, proxy_content = compress_image(content, dynamic_quality)
+        # Adaptive Compression Quality based on network speed (Dynamic)
+        # If speed < 1MB/s, use higher compression (lower quality proxy)
+        quality = 95 if priority == "High" else 30
+        if real_speed_bps < 1024 * 1024:
+            quality = 70 if priority == "High" else 10
+        
+        # 2. Pipeline Step 2: TRUE Neural Compression (ResUNet)
+        compressed_content, proxy_content = compress_image(content, quality)
         
         # 3. Pipeline Step 6: Reconstruction (Neural Decoder)
         restored_content = reconstruct_image(compressed_content)
+        
+        # 4. Pipeline Step 7: Quality Evaluation (PSNR/SSIM/Usability)
+        quality_metrics = calculate_metrics(content, restored_content)
         
         case_id = uuid.uuid4().hex[:6].upper()
         
@@ -126,19 +130,21 @@ async def upload(
         with open(f"uploads/{case_id}_restored.jpg", "wb") as f: f.write(restored_content) 
 
         processed_batch.append({
-            "case_id": case_id, "diagnosis": diagnosis_full, "priority": priority, 
+            "case_id": case_id, "diagnosis": diagnosis, "subtype": subtype, "priority": priority, 
             "file_size": len(compressed_content),
             "original_size": len(content),
-            "network_speed": real_speed_bps, "sender": sender, "receiver": receiver
+            "network_speed": real_speed_bps, "sender": sender, "receiver": receiver,
+            "quality_metrics": quality_metrics
         })
 
     processed_batch.sort(key=lambda x: 0 if x['priority'] == 'High' else 1)
 
     for case in processed_batch:
         await cases.insert_one({
-            "case_id": case['case_id'], "diagnosis": case['diagnosis'], "priority": case['priority'], 
+            "case_id": case['case_id'], "diagnosis": case['diagnosis'], "subtype": case['subtype'], "priority": case['priority'], 
             "timestamp": datetime.now(), "original_size": case['original_size'], "compressed_size": case['file_size'],
-            "sender": case['sender'], "receiver": case['receiver']
+            "sender": case['sender'], "receiver": case['receiver'],
+            "quality_metrics": case['quality_metrics']
         })
         await transfers.insert_one({
             "case_id": case['case_id'], "status": "Queued", "progress": 0, "speed": "0 KB/s", 
